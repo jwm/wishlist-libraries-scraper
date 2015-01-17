@@ -1,0 +1,9 @@
+#!/bin/sh
+
+rm wishlist.json
+scrapy crawl wishlist -o wishlist.json -t json -L INFO
+
+rm library.json
+scrapy crawl library -o library.json -t json -L INFO
+
+./page.py >wishlist.html

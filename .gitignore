@@ -1,0 +1,3 @@
+*.pyc
+.scrapy
+amazon-api-cache.db
