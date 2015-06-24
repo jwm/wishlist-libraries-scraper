@@ -1,9 +1,13 @@
 #!/bin/sh
 
-rm wishlist.json
-scrapy crawl wishlist -o wishlist.json -t json -L INFO
+topdir=$(dirname "$0")
 
-rm library.json
-scrapy crawl library -o library.json -t json -L INFO
+set -e
 
-./page.py >wishlist.html
+rm -f "$topdir/wishlist.json"
+scrapy crawl wishlist -o "$topdir/wishlist.json" -t json -L INFO
+
+rm -f "$topdir/library.json"
+scrapy crawl library -o "$topdir/library.json" -t json -L INFO
+
+"$topdir/page.py"

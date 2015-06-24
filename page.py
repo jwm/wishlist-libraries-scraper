@@ -1,4 +1,4 @@
-#!/usr/bin/env python -tt
+#!/usr/bin/env python
 from __future__ import print_function
 
 BEST_BRANCHES = {
@@ -46,9 +46,8 @@ print('''
 
 print('''
     <body>
-        {} items<br>
         <ul>
-'''.format(len(wishlist_items)))
+''')
 
 def sort_key(value):
     return [int(i) for i in value['sort_key'].split('/')]
@@ -111,7 +110,7 @@ for item in sorted(wishlist_items, key=lambda item: sort_key(item)):
                 for holding
                  in holdings
                  if holding['branch'] in best_branches and
-                    holding['available']
+                    holding.get('available')
             ]
             if not best_branches_available:
                 best_branches_own = collections.Counter([
@@ -133,7 +132,7 @@ for item in sorted(wishlist_items, key=lambda item: sort_key(item)):
                         holding['branch']
                         for holding
                          in holdings
-                         if holding['available']]) -
+                         if holding.get('available')]) -
                     best_branches)
         else:
             # If this item isn't owned by any of our best branches,
@@ -142,7 +141,7 @@ for item in sorted(wishlist_items, key=lambda item: sort_key(item)):
                 holding['branch']
                 for holding
                 in holdings
-                if holding['available']
+                if holding.get('available')
             ])
 
         for best_branch in best_branches:
@@ -156,7 +155,7 @@ for item in sorted(wishlist_items, key=lambda item: sort_key(item)):
                 holding
                 for holding
                  in branch_owns
-                 if holding['available']
+                 if holding.get('available')
             ]
             available_call_numbers = collections.Counter([
                 (holding['call_num'],
@@ -167,7 +166,8 @@ for item in sorted(wishlist_items, key=lambda item: sort_key(item)):
 
             format_str = u'{} ({}/{}){}'
             values = []
-            if best_branch == 'INTERNET' and branch_owns:
+            if (best_branch == 'INTERNET' and branch_owns and
+                    'digital_url' in branch_owns[0]):
                 values.append('<a href="{}">{}</a>'.format(
                     branch_owns[0]['digital_url'], best_branch))
             else:
@@ -192,7 +192,7 @@ for item in sorted(wishlist_items, key=lambda item: sort_key(item)):
             holding
             for holding
              in holdings
-             if holding['available']
+             if holding.get('available')
         ])
 
         print('<strong>{}</strong>'.format(library), end='')
