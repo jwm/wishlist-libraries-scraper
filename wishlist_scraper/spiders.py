@@ -264,17 +264,24 @@ class LibrarySpider(scrapy.spider.BaseSpider):
             return
 
         for result in response.css('.listItem'):
-            if 'eBook' in result.css('.format')[0].extract():
-                availability_url = result.xpath(
-                    '//*[contains(@href, "digital_availability")]/@href')[0]
+            format = result.css('.format')[0].extract()
+
+            if 'eBook' in format:
+                search_string = 'digital_availability'
                 callback = self.parse_item_BRL_ebook_availability
-            else:
-                availability_url = result.xpath(
-                    '//*[contains(@href, "show_circulation")]/@href')[0]
+            elif 'Book' in format:
+                search_string = 'show_circulation'
                 callback = self.parse_item_BRL_availability
+            else:
+                continue
+
+            availability_url = result.xpath(
+                '//*[contains(@href, "{}")]/@href'.format(search_string))
+            if not availability_url:
+                continue
 
             yield scrapy.http.Request(
-                utils.qualified_url(response, availability_url.extract()),
+                utils.qualified_url(response, availability_url[0].extract()),
                 meta=response.meta, callback=callback)
 
     def parse_item_BRL_ebook_availability(self, response):
