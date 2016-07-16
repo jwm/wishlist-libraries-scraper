@@ -162,7 +162,7 @@ class WishlistSpider(scrapy.spider.BaseSpider):
 class LibrarySpider(scrapy.spider.BaseSpider):
     name = 'library'
 
-    libraries = ['BRL', 'HLS', 'MLN']
+    libraries = ['BRL', 'MLN']
 
     @classmethod
     def _unescape(cls, text):
