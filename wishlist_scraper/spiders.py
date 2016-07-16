@@ -458,9 +458,26 @@ class LibrarySpider(scrapy.spider.BaseSpider):
 
             if 'E-RESOURCE' in available:
                 avail_item.add_value('call_num', 'E-RESOURCE')
-                avail_item.add_xpath(
+
+                if 'Commonwealth eBook Collections' in response.css('.bibItemsEntry')[0].extract():
+                    # Some electronic content is not available to all libraries.
+                    # Links to http://www.mln.lib.ma.us/scripts/db_authorization.plx
+                    continue
+
+                bib_links = response.css('.bibLinks')
+                if bib_links:
+                    url = bib_links[0].css('a::attr(href)').extract()
+                else:
+                    url = response.xpath(
+                        '//a[contains(text(), "Digital Media Catalog")]/@href'
+                    ).extract()
+
+                if not url:
+                    continue
+
+                avail_item.add_value(
                     'digital_url',
-                    '//a[contains(text(), "Digital Media Catalog")]/@href')
+                    utils.qualified_url(response, url[0].strip()))
             else:
                 avail_item.add_css('call_num', 'td:nth-child(2) a::text')
 
