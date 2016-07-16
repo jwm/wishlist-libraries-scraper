@@ -78,7 +78,7 @@ for item in sorted(wishlist_items, key=lambda item: sort_key(item)):
             item['amazon_prices'].get('new_lowest_price', '-'),
             item['amazon_prices']['used_count'],
             item['amazon_prices'].get('used_lowest_price', '-')))
-    elif 'Kindle' in item['format']:
+    elif 'Kindle' in item.get('format', ''):
         print('(Kindle)<br>')
 
     # FIXME: isbn
