@@ -393,13 +393,21 @@ class LibrarySpider(scrapy.spider.BaseSpider):
                 yield item
                 return
 
-        for holding in response.css('.briefcitTitle'):
-            if 'sound recording' in holding.extract():
+        for holding in response.css('.briefcitRow'):
+            title_region = holding.css('.briefcitTitle')[0]
+
+            if 'sound recording' in title_region.extract():
+                continue
+
+            media_type = holding.css('.briefcitMatType')[0].extract()
+            if 'DIGITAL AUDIOBOOK' in media_type:
+                continue
+            if 'SPOKEN CD' in media_type:
                 continue
 
             yield scrapy.http.Request(
                 utils.qualified_url(
-                    response, holding.css('a::attr(href)')[0].extract()),
+                    response, title_region.css('a::attr(href)')[0].extract()),
                 meta=response.meta,
                 callback=self.parse_item_MLN)
 
