@@ -1,3 +1,5 @@
 *.pyc
 .scrapy
 amazon-api-cache.db
+library.json
+wishlist.json
