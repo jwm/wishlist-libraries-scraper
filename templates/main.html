@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>jwm's Amazon Wishlist</title>
+
+	<style type='text/css'>
+		li {
+			list-style-type: none;
+			width: 50%;
+		}
+
+		li.left {
+			float: left;
+			clear: left;
+		}
+		li.right {
+			float: right;
+			clear: right;
+		}
+
+		img {
+			border: 0;
+			margin-right: 0.3em;
+			margin-bottom: 0.5em;
+		}
+	</style>
+</head>
+
+<body>
+
+<ul>
+	{% set item_class = cycler('left', 'right') %}
+	{% for item in items if 'url' in item['image'] %}
+		<li class="{{ item_class.__next__() }}">
+			<a href="{{ item['amazon_url'] }}">
+				<img style="float: left"
+					 src="{{ item['image']['url'] }}"
+					 height="{{ item['image']['height'] }}"
+					 width="{{ item['image']['width'] }}"
+					 alt="{{ item['image']['caption'] }}">
+			</a>
+
+			{{ item['title'] }}<br>
+			{{ item.get('by', '') }}<br>
+
+			{% if item['amazon_prices'] %}
+				New ({{ item['amazon_prices']['new_count'] }}):
+				{{ item['amazon_prices'].get('new_lowest_price', '-') }},
+				Used ({{ item['amazon_prices']['used_count'] }}):
+				{{ item['amazon_prices'].get('used_lowest_price', '-') }}<br>
+			{% elif 'Kindle' in item.get('format', '') %}
+				(Kindle)<br>
+			{% endif %}
+
+			{% for library, holdings in item['holdings']|groupby('library') %}
+				<strong>{{ library }}:</strong>
+				{% if holdings|sum('available') != holdings|count %}
+					{{ holdings|sum('available') }}/{{ holdings|count }} available
+					{%- if item.get('display_branches', [])|count > 0 %}: {% endif %}
+				{% endif %}
+
+				{% set branch_separator = joiner(', ') %}
+				{% for branch in item.get('display_branches', []) %}
+					{%- set branch_holdings = holdings|selectattr('branch', 'equalto', branch)|list -%}
+					{%- if branch_holdings|count > 0 -%}
+						{{ branch_separator() }}
+						{% include 'branch_details.html' %}
+					{%- endif -%}
+				{% endfor %}
+				<br>
+			{% endfor %}
+		</li>
+	{% endfor %}
+</ul>
+
+</body>
+
+</html>

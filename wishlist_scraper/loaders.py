@@ -1,8 +1,8 @@
 from scrapy.item import Item
-from scrapy.contrib.loader import ItemLoader
-from scrapy.contrib.loader.processor import Compose, Join, MapCompose
+from scrapy.loader import ItemLoader
+from scrapy.loader.processors import Compose, Join, MapCompose
 
-from items import (
+from .items import (
     WishlistItem, WishlistItemImage, WishlistItemAmazonPrices,
     LibraryAvailability)
 

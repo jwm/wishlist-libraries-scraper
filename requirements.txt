@@ -1,4 +1,5 @@
 bottlenose
+jinja2
 lxml
 scrapy
 slimit

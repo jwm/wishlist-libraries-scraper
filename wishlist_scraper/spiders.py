@@ -1,35 +1,31 @@
 #!/usr/bin/env python -tt
 
 import copy
-import gdbm
+import _gdbm
 import itertools
 import json
 import os
 import re
 import time
-import urllib2
-try:
-    from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
-except ImportError:
-    from urllib import urlencode
-    from urlparse import parse_qs, urlparse, urlunparse
+from urllib.error import HTTPError
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import bottlenose
 import lxml
 import scrapy.http
 import scrapy.selector
-import scrapy.spider
+import scrapy.spiders
 import slimit
 import slimit.parser
 import slimit.visitors.nodevisitor
 
-from loaders import (
+from .loaders import (
     WishlistItemLoader, WishlistItemImageLoader,
     WishlistItemAmazonPricesLoader, LibraryAvailabilityLoader)
-import utils
+from .utils import qualified_url
 
 
-class WishlistSpider(scrapy.spider.BaseSpider):
+class WishlistSpider(scrapy.spiders.Spider):
     name = 'wishlist'
     start_urls = [
         'https://www.amazon.com/registry/wishlist/{}'.format(
@@ -38,7 +34,7 @@ class WishlistSpider(scrapy.spider.BaseSpider):
     def __init__(self, *args, **kwargs):
         super(WishlistSpider, self).__init__(*args, **kwargs)
 
-        self.amazon_api_cache = gdbm.open('amazon-api-cache.db', 'c')
+        self.amazon_api_cache = _gdbm.open('amazon-api-cache.db', 'c')
         self.amazon = bottlenose.Amazon(
             os.environ['AWS_ACCESS_KEY_ID'],
             os.environ['AWS_SECRET_ACCESS_KEY'],
@@ -50,7 +46,7 @@ class WishlistSpider(scrapy.spider.BaseSpider):
 
     def amazon_api_error_handler(self, err):
         exc = err['exception']
-        if isinstance(exc, urllib2.HTTPError) and exc.code == 503:
+        if isinstance(exc, HTTPError) and exc.code == 503:
             time.sleep(1)
             return True
 
@@ -76,7 +72,7 @@ class WishlistSpider(scrapy.spider.BaseSpider):
         max_page_num = 1
         template_page_url = response.url
         for page in pages:
-            page_url = urlparse(utils.qualified_url(response, page.extract()))
+            page_url = urlparse(qualified_url(response, page.extract()))
             qs = parse_qs(page_url.query)
             if 'page' not in qs:
                 continue
@@ -108,7 +104,7 @@ class WishlistSpider(scrapy.spider.BaseSpider):
             sel = scrapy.selector.Selector(text=product_info, type='xml')
             sel.register_namespace(
                 'aws',
-                'http://webservices.amazon.com/AWSECommerceService/2011-08-01')
+                'http://webservices.amazon.com/AWSECommerceService/2013-08-01')
 
             item_loader = WishlistItemLoader(selector=sel)
             item_loader.add_value(
@@ -161,7 +157,7 @@ class WishlistSpider(scrapy.spider.BaseSpider):
             yield item_loader.load_item()
 
 
-class LibrarySpider(scrapy.spider.BaseSpider):
+class LibrarySpider(scrapy.spiders.Spider):
     name = 'library'
 
     libraries = ['BRL', 'MLN']
@@ -218,7 +214,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
         query_string = urlencode((
             ('custom_query', u'title:({}) AND contributor:({})'.format(
                 cls._searchable_title(item['title']),
-                cls._searchable_author(item['by'])).encode('utf-8')),
+                cls._searchable_author(item.get('by', ''))).encode('utf-8')),
             ('searchscope', 'MBLN'),
             ('suppress', 'true'),
             ('custom_edit', 'false'),
@@ -244,7 +240,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
         query_string = urlencode((
             ('SEARCH', u't:({}) and a:({})'.format(
                 cls._searchable_title(item['title']),
-                cls._searchable_author(item['by'])).encode('utf-8')),
+                cls._searchable_author(item.get('by', ''))).encode('utf-8')),
             ('searchscope', 1),
         ), True)
 
@@ -265,7 +261,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
 
     def parse_BRL_response(self, response):
         # http://bpl.bibliocommons.com/search?custom_query=identifier%3A(9780446573016)%20%20%20formatcode%3A(BK%20OR%20EBOOK%20)&search_scope=MBLN&suppress=true&custom_edit=false
-        if 'No direct matches were found.' in response.body:
+        if 'No direct matches were found.' in response.body.decode():
             return
 
         for result in response.css('.listItem'):
@@ -276,7 +272,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
                 search_string = 'digital_availability'
                 callback = self.parse_item_BRL_ebook_availability
 
-                meta['item_url'] = utils.qualified_url(
+                meta['item_url'] = qualified_url(
                     response,
                     result.css('.jacketCoverLink').xpath('@href')[0].extract()
                 )
@@ -284,7 +280,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
                 search_string = 'show_circulation'
                 callback = self.parse_item_BRL_availability
 
-                meta['item_url'] = utils.qualified_url(
+                meta['item_url'] = qualified_url(
                     response,
                     result.xpath(
                         '//*[contains(@href, "item/show")]/@href')[0].extract()
@@ -302,11 +298,11 @@ class LibrarySpider(scrapy.spider.BaseSpider):
                 availability_url += '.json'
 
             yield scrapy.http.Request(
-                utils.qualified_url(response, availability_url),
+                qualified_url(response, availability_url),
                 meta=meta, callback=callback)
 
     def parse_item_BRL_ebook_availability(self, response):
-        decoded = json.loads(response.body)
+        decoded = json.loads(response.body.decode())
 
         # decoded['html'] for number of holds
         # <span class="label availability digital_availability"><span class="digital not_yet_available">Not Currently Available.</span><span class="holdposition">Holds: 7 holds on 8 Volumes</span></span>
@@ -314,7 +310,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
         avail_item = LibraryAvailabilityLoader(selector=response)
         avail_item.add_value('item', response.meta['item'])
         avail_item.add_value('library', 'MBLN')
-        avail_item.add_value('catalog_url', response.meta['item_url'])
+        avail_item.add_value('digital_url', response.meta['item_url'])
         avail_item.add_value('branch', 'INTERNET')
         avail_item.add_value('collection', '')
         avail_item.add_value('call_num', 'INTERNET')
@@ -354,7 +350,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
     def parse_item_HLS_sso_redirect(self, response):
         # <A HREF=http://lms01.harvard.edu:80/F/3JXTKP544E6B88MX7KBBLG2BKGTJNN4TVD8M8Y5BRL65FQE5R4-00988?func=item-global&doc_library=HVD01&doc_number=009100826&year=&volume=&sub_library=>Availability</A>
         url = response.css('a::attr("href")')[0].extract()
-        redirect_url = utils.qualified_url(response, self._unescape(url))
+        redirect_url = qualified_url(response, self._unescape(url))
         yield scrapy.http.Request(
             redirect_url, meta=response.meta,
             callback=self.parse_item_HLS_item_list)
@@ -376,8 +372,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
         item_url = scrapy.selector.Selector(
             text=js_vars['recordLink'], type='html').css(
                 'a::attr("href")')[0].extract()
-        item_url = utils.qualified_url(
-            response, self._unescape(item_url))
+        item_url = qualified_url(response, self._unescape(item_url))
 
         yield scrapy.http.Request(
             item_url, meta=response.meta, callback=self.parse_item_HLS_item)
@@ -421,7 +416,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
             yield avail_item.load_item()
 
     def parse_MLN_response(self, response):
-        if '1 result found' in response.body:
+        if '1 result found' in response.body.decode():
             for item in self.parse_item_MLN(response):
                 yield item
                 return
@@ -433,13 +428,13 @@ class LibrarySpider(scrapy.spider.BaseSpider):
                 continue
 
             media_type = holding.css('.briefcitMatType')[0].extract()
-            if 'DIGITAL AUDIOBOOK' in media_type:
+            if 'AUDIOBOOK' in media_type:
                 continue
             if 'SPOKEN CD' in media_type:
                 continue
 
             yield scrapy.http.Request(
-                utils.qualified_url(
+                qualified_url(
                     response, title_region.css('a::attr(href)')[0].extract()),
                 meta=response.meta,
                 callback=self.parse_item_MLN)
@@ -451,8 +446,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
         # list on the item's page will be truncated.
         if full_availability_url:
             yield scrapy.http.Request(
-                utils.qualified_url(
-                    response, full_availability_url[0].extract()),
+                qualified_url(response, full_availability_url[0].extract()),
                 meta=response.meta,
                 callback=self.parse_item_MLN_item_full_availability)
             return
@@ -509,8 +503,8 @@ class LibrarySpider(scrapy.spider.BaseSpider):
                     continue
 
                 avail_item.add_value(
-                    'digital_url',
-                    utils.qualified_url(response, url[0].strip()))
+                    'digital_url', qualified_url(response, url[0].strip())
+                )
             else:
                 avail_item.add_css('call_num', 'td:nth-child(2) a::text')
 

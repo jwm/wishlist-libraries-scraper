@@ -5,6 +5,6 @@ CONCURRENT_REQUESTS = 1
 HTTPCACHE_ENABLED = True
 HTTPCACHE_EXPIRATION_SECS = 2 * 24 * 60 * 60
 SPIDER_MIDDLEWARES = {
-    'scrapy.contrib.downloadermiddleware.cookies.CookiesMiddleware': '100',
+    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 100,
 }
 COOKIES_ENABLED = True

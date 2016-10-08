@@ -1,4 +1,4 @@
-from scrapy.contrib.loader.processor import (
+from scrapy.loader.processors import (
     Compose, Join, MapCompose, TakeFirst)
 from scrapy.item import Item, Field
 
