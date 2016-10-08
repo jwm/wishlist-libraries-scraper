@@ -1,6 +1,8 @@
 #!/usr/bin/env python -tt
 
+import copy
 import gdbm
+import itertools
 import json
 import os
 import re
@@ -249,14 +251,17 @@ class LibrarySpider(scrapy.spider.BaseSpider):
         return 'http://library.minlib.net/search/X?{}'.format(query_string)
 
     def start_requests(self):
-        for item in json.load(open('wishlist.json')):
-            for library in self.libraries:
-                yield scrapy.http.Request(
-                    getattr(self, '_build_{}_url'.format(library))(
-                        item, library),
-                    meta={'item': item},
-                    callback=getattr(
-                        self, 'parse_{}_response'.format(library)))
+        with open('wishlist.json') as items_fp:
+            items = json.load(items_fp)
+
+        for item, library in itertools.product(items, self.libraries):
+            yield scrapy.http.Request(
+                getattr(self, '_build_{}_url'.format(library))(
+                    item, library),
+                meta={'item': item},
+                callback=getattr(
+                    self, 'parse_{}_response'.format(library))
+            )
 
     def parse_BRL_response(self, response):
         # http://bpl.bibliocommons.com/search?custom_query=identifier%3A(9780446573016)%20%20%20formatcode%3A(BK%20OR%20EBOOK%20)&search_scope=MBLN&suppress=true&custom_edit=false
@@ -264,14 +269,26 @@ class LibrarySpider(scrapy.spider.BaseSpider):
             return
 
         for result in response.css('.listItem'):
+            meta = copy.copy(response.meta)
             format = result.css('.format')[0].extract()
 
             if 'eBook' in format:
                 search_string = 'digital_availability'
                 callback = self.parse_item_BRL_ebook_availability
+
+                meta['item_url'] = utils.qualified_url(
+                    response,
+                    result.css('.jacketCoverLink').xpath('@href')[0].extract()
+                )
             elif 'Book' in format:
                 search_string = 'show_circulation'
                 callback = self.parse_item_BRL_availability
+
+                meta['item_url'] = utils.qualified_url(
+                    response,
+                    result.xpath(
+                        '//*[contains(@href, "item/show")]/@href')[0].extract()
+                )
             else:
                 continue
 
@@ -280,13 +297,29 @@ class LibrarySpider(scrapy.spider.BaseSpider):
             if not availability_url:
                 continue
 
+            availability_url = availability_url[0].extract()
+            if 'eBook' in format:
+                availability_url += '.json'
+
             yield scrapy.http.Request(
-                utils.qualified_url(response, availability_url[0].extract()),
-                meta=response.meta, callback=callback)
+                utils.qualified_url(response, availability_url),
+                meta=meta, callback=callback)
 
     def parse_item_BRL_ebook_availability(self, response):
-        # FIXME
-        pass
+        decoded = json.loads(response.body)
+
+        # decoded['html'] for number of holds
+        # <span class="label availability digital_availability"><span class="digital not_yet_available">Not Currently Available.</span><span class="holdposition">Holds: 7 holds on 8 Volumes</span></span>
+
+        avail_item = LibraryAvailabilityLoader(selector=response)
+        avail_item.add_value('item', response.meta['item'])
+        avail_item.add_value('library', 'MBLN')
+        avail_item.add_value('catalog_url', response.meta['item_url'])
+        avail_item.add_value('branch', 'INTERNET')
+        avail_item.add_value('collection', '')
+        avail_item.add_value('call_num', 'INTERNET')
+        avail_item.add_value('available', str(decoded['available']))
+        yield avail_item.load_item()
 
     def parse_item_BRL_availability(self, response):
         # http://bpl.bibliocommons.com//item/show_circulation/1598453075?search_scope=MBLN
@@ -302,7 +335,7 @@ class LibrarySpider(scrapy.spider.BaseSpider):
                 avail_item = LibraryAvailabilityLoader(selector=row)
                 avail_item.add_value('item', response.meta['item'])
                 avail_item.add_value('library', 'MBLN')
-                avail_item.add_value('catalog_url', response.url)
+                avail_item.add_value('catalog_url', response.meta['item_url'])
                 avail_item.add_xpath('branch', 'td[1]/text()')
                 avail_item.add_xpath('collection', 'td[2]/text()')
                 avail_item.add_xpath('call_num', 'td[3]/text()')

@@ -3,7 +3,7 @@ from __future__ import print_function
 
 BEST_BRANCHES = {
     'Harvard': ['Lamont', 'Widener'],
-    'MBLN': ['BPL - Central'],
+    'MBLN': ['BPL - Central', 'INTERNET'],
     'Minuteman': ['CAMBRIDGE', 'INTERNET'],
 }
 
