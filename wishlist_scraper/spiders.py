@@ -6,6 +6,7 @@ import itertools
 import json
 import os
 import re
+import requests
 import time
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
@@ -21,7 +22,8 @@ import slimit.visitors.nodevisitor
 
 from .loaders import (
     WishlistItemLoader, WishlistItemImageLoader,
-    WishlistItemAmazonPricesLoader, LibraryAvailabilityLoader)
+    WishlistItemAmazonPricesLoader, WishlistItemRatingOverviewLoader,
+    LibraryAvailabilityLoader)
 from .utils import qualified_url
 
 
@@ -153,6 +155,31 @@ class WishlistSpider(scrapy.spiders.Spider):
                 'used_lowest_price',
                 'aws:LowestUsedPrice/aws:FormattedPrice/text()')
             item_loader.add_value('amazon_prices', amazon_prices.load_item())
+
+            reviews_info = self.amazon.ItemLookup(
+                ItemId=info['asin'], ResponseGroup='Reviews')
+            reviews_info_sel = scrapy.selector.Selector(
+                text=reviews_info, type='xml')
+            reviews_info_sel.register_namespace(
+                'aws',
+                'http://webservices.amazon.com/AWSECommerceService/2013-08-01')
+            reviews_iframe_url = reviews_info_sel.xpath(
+                '//aws:Items/aws:Item/aws:CustomerReviews/aws:IFrameURL/text()'
+            ).extract()[0]
+            #reviews_iframe_content = requests.get(reviews_iframe_url).text
+            reviews_iframe_content = ''
+
+            reviews_sel = scrapy.selector.Selector(
+                text=reviews_iframe_content, type='html')
+            rating_loader = WishlistItemRatingOverviewLoader(
+                selector=reviews_sel)
+            rating_loader.add_value('url', reviews_iframe_url)
+            #rating_loader.add_css(
+            #    'avg_rating', '.crIFrameNumCustReviews img::attr(alt)')
+            #rating_loader.add_css(
+            #    'star_url', '.crIFrameNumCustReviews img::attr(src)')
+            item_loader.add_value(
+                'rating_overview', rating_loader.load_item())
 
             yield item_loader.load_item()
 

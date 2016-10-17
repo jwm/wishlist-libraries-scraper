@@ -4,7 +4,7 @@ from scrapy.loader.processors import Compose, Join, MapCompose
 
 from .items import (
     WishlistItem, WishlistItemImage, WishlistItemAmazonPrices,
-    LibraryAvailability)
+    WishlistItemAmazonRatingOverview, LibraryAvailability)
 
 
 def strip_value(value):
@@ -25,6 +25,11 @@ class WishlistItemAmazonPricesLoader(ItemLoader):
 
 class WishlistItemImageLoader(ItemLoader):
     default_item_class = WishlistItemImage
+    default_output_processor = Compose(MapCompose(strip_value), Join())
+
+
+class WishlistItemRatingOverviewLoader(ItemLoader):
+    default_item_class = WishlistItemAmazonRatingOverview
     default_output_processor = Compose(MapCompose(strip_value), Join())
 
 

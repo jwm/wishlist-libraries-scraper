@@ -42,6 +42,12 @@
 
 			{{ item['title'] }}<br>
 			{{ item.get('by', '') }}<br>
+			<a href="{{ item.rating_overview.url }}">[reviews]</a>
+			{% if 'star_url' in item.rating_overview %}
+                <img src="{{ item.rating_overview.star_url }}"
+                     alt="{{ item.rating_overview.avg_rating }}">
+            {% endif %}
+            <br>
 
 			{% if item['amazon_prices'] %}
 				New ({{ item['amazon_prices']['new_count'] }}):

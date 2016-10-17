@@ -28,6 +28,7 @@ def get_holdings(all_holdings, isbn, library=None, branches=None):
 
     return holdings
 
+
 def get_best_branches(holdings, library):
     preferred_branches_holdings = get_holdings(
         holdings, holdings[0]['item']['isbn'],

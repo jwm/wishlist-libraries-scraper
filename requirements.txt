@@ -1,5 +1,6 @@
 bottlenose
 jinja2
 lxml
+requests
 scrapy
 slimit

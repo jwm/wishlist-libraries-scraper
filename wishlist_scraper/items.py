@@ -18,6 +18,17 @@ class WishlistItemAmazonPrices(Item):
     used_lowest_price = Field()
 
 
+class WishlistItemAmazonRatingOverview(Item):
+    def parse_avg_rating(value):
+        return value.split()[0]
+
+    url = Field()
+    avg_rating = Field(
+        output_processor=Compose(
+            MapCompose(lambda s: s.strip()), TakeFirst(), parse_avg_rating))
+    star_url = Field()
+
+
 class WishlistItem(Item):
     isbn = Field()
     format = Field()
@@ -26,12 +37,13 @@ class WishlistItem(Item):
     amazon_url = Field()
     image = Field(output_processor=TakeFirst())
     amazon_prices = Field(output_processor=TakeFirst())
+    rating_overview = Field(output_processor=TakeFirst())
     sort_key = Field(output_processor=Join('/'))
 
 
 class LibraryAvailability(Item):
     def parse_available(value):
-        if value.lower() in ['available', 'in', 'not checked out']:
+        if value.lower() in ['true', 'available', 'in', 'not checked out']:
             return True
         return False
 

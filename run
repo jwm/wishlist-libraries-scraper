@@ -5,9 +5,9 @@ topdir=$(dirname "$0")
 set -e
 
 rm -f "$topdir/wishlist.json"
-scrapy crawl wishlist -o "$topdir/wishlist.json" -t json -L INFO
+scrapy crawl wishlist -o "$topdir/wishlist.json" -t json -L WARN
 
 rm -f "$topdir/library.json"
-scrapy crawl library -o "$topdir/library.json" -t json -L INFO
+scrapy crawl library -o "$topdir/library.json" -t json -L WARN
 
 "$topdir/page.py"
