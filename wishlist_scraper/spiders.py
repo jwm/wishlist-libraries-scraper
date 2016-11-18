@@ -174,10 +174,10 @@ class WishlistSpider(scrapy.spiders.Spider):
             rating_loader = WishlistItemRatingOverviewLoader(
                 selector=reviews_sel)
             rating_loader.add_value('url', reviews_iframe_url)
-            #rating_loader.add_css(
-            #    'avg_rating', '.crIFrameNumCustReviews img::attr(alt)')
-            #rating_loader.add_css(
-            #    'star_url', '.crIFrameNumCustReviews img::attr(src)')
+            rating_loader.add_css(
+                'avg_rating', '.crIFrameNumCustReviews img::attr(alt)')
+            rating_loader.add_css(
+                'star_url', '.crIFrameNumCustReviews img::attr(src)')
             item_loader.add_value(
                 'rating_overview', rating_loader.load_item())
 
