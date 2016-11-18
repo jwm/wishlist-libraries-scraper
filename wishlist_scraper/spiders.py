@@ -362,7 +362,13 @@ class LibrarySpider(scrapy.spiders.Spider):
                 avail_item.add_xpath('branch', 'td[1]/text()')
                 avail_item.add_xpath('collection', 'td[2]/text()')
                 avail_item.add_xpath('call_num', 'td[3]/text()')
-                avail_item.add_xpath('available', 'td[4]/text()')
+
+                call_num = row.xpath('td[3]/text()').extract()[0]
+                if 'On-Order' in call_num:
+                    avail_item.add_value('available', 'false')
+                else:
+                    avail_item.add_xpath('available', 'td[4]/text()')
+
                 yield avail_item.load_item()
 
     def parse_HLS_response(self, response):
