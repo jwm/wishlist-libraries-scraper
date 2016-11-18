@@ -352,7 +352,7 @@ class LibrarySpider(scrapy.spiders.Spider):
         for branch in response.css('.branch'):
             available_at = branch.css('tbody tr')
             for row in available_at:
-                if row.css('.note'):
+                if row.css('.notes'):
                     continue
 
                 avail_item = LibraryAvailabilityLoader(selector=row)
