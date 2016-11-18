@@ -43,9 +43,7 @@ class WishlistItem(Item):
 
 class LibraryAvailability(Item):
     def parse_available(value):
-        if value.lower() in ['true', 'available', 'in', 'not checked out']:
-            return True
-        return False
+        return value.lower() in ['true', 'available', 'in', 'not checked out']
 
     def parse_call_num(value):
         return value.replace(u'\xa0', ' ')
