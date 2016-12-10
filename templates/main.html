@@ -60,15 +60,15 @@
 
 			{% for library, holdings in item['holdings']|groupby('library') %}
 				<strong>{{ library }}:</strong>
-				{% if holdings|sum('available') != holdings|count %}
-					{{ holdings|sum('available') }}/{{ holdings|count }} available
+				{% if holdings|sum('available') != holdings|sum('copies') %}
+					{{ holdings|sum('available') }}/{{ holdings|sum('copies') }} available
 					{%- if item.get('display_branches', [])|count > 0 %}: {% endif %}
 				{% endif %}
 
 				{% set branch_separator = joiner(', ') %}
 				{% for branch in item.get('display_branches', []) %}
 					{%- set branch_holdings = holdings|selectattr('branch', 'equalto', branch)|list -%}
-					{%- if branch_holdings|count > 0 -%}
+					{%- if branch_holdings|sum('copies') > 0 -%}
 						{{ branch_separator() }}
 						{% include 'branch_details.html' %}
 					{%- endif -%}

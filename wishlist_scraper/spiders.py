@@ -291,57 +291,52 @@ class LibrarySpider(scrapy.spiders.Spider):
         if 'No direct matches were found.' in response.body.decode():
             return
 
-        for result in response.css('.listItem'):
+        for result in response.css('.list_item_outer'):
             meta = copy.copy(response.meta)
             format = result.css('.format')[0].extract()
 
             if 'eBook' in format:
-                search_string = 'digital_availability'
-                callback = self.parse_item_BRL_ebook_availability
-
                 meta['item_url'] = qualified_url(
                     response,
                     result.css('.jacketCoverLink').xpath('@href')[0].extract()
                 )
-            elif 'Book' in format:
-                search_string = 'show_circulation'
-                callback = self.parse_item_BRL_availability
+                list_item = result.css('.list_item_outer')
+                list_item.meta = meta
 
+                yield from self.parse_item_BRL_ebook_availability(list_item)
+                continue
+            elif 'Book' in format:
                 meta['item_url'] = qualified_url(
                     response,
                     result.xpath(
                         '//*[contains(@href, "item/show")]/@href')[0].extract()
                 )
-            else:
-                continue
 
-            availability_url = result.xpath(
-                '//*[contains(@href, "{}")]/@href'.format(search_string))
-            if not availability_url:
-                continue
+                availability_url = result.xpath(
+                    '//*[contains(@href, "{}")]/@href'.format('show_circulation'))
+                availability_url = qualified_url(
+                    response, availability_url[0].extract())
 
-            availability_url = availability_url[0].extract()
-            if 'eBook' in format:
-                availability_url += '.json'
-
-            yield scrapy.http.Request(
-                qualified_url(response, availability_url),
-                meta=meta, callback=callback)
+                yield scrapy.http.Request(
+                    availability_url, meta=meta,
+                    callback=self.parse_item_BRL_availability)
 
     def parse_item_BRL_ebook_availability(self, response):
-        decoded = json.loads(response.body.decode())
-
-        # decoded['html'] for number of holds
-        # <span class="label availability digital_availability"><span class="digital not_yet_available">Not Currently Available.</span><span class="holdposition">Holds: 7 holds on 8 Volumes</span></span>
+        # Roxbury Community College students and faculty only: Click here
+        # for electronic book
+        if 'site.ebrary.com' in response.extract()[0]:
+            return
 
         avail_item = LibraryAvailabilityLoader(selector=response)
         avail_item.add_value('item', response.meta['item'])
         avail_item.add_value('library', 'MBLN')
         avail_item.add_value('digital_url', response.meta['item_url'])
         avail_item.add_value('branch', 'INTERNET')
-        avail_item.add_value('collection', '')
+        avail_item.add_value('collection', 'Overdrive')
         avail_item.add_value('call_num', 'INTERNET')
-        avail_item.add_value('available', str(decoded['available']))
+        avail_item.add_css('available', '.availability_block .digital::text')
+        avail_item.add_css('holds', '.availability_block .holdposition::text')
+        avail_item.add_css('copies', '.availability_block .holdposition::text')
         yield avail_item.load_item()
 
     def parse_item_BRL_availability(self, response):

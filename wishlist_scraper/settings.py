@@ -8,3 +8,4 @@ SPIDER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 100,
 }
 COOKIES_ENABLED = True
+USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:49.0) Gecko/20100101 Firefox/49.0'

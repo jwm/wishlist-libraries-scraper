@@ -1,19 +1,20 @@
 {%- if branch == 'INTERNET' -%}
 	<a href="{{ branch_holdings[0].get('digital_url', '') }}">
 		{{ branch }}</a>:
-	({{ branch_holdings|sum('available') }}/{{ branch_holdings|count }})
+	({{ branch_holdings|sum('available') }}/{{ branch_holdings|sum('copies') }},
+		{{ branch_holdings|sum('holds') }} holds)
 {%- else -%}
 	{%- if branch_holdings|sum('available') == 0 -%}
 		<a href="{{ branch_holdings[0]['catalog_url'] }}">{{ branch }}</a>
 	{%- else -%}
 		{{ branch }}
 	{%- endif %}
-	({{ branch_holdings|sum('available') }}/{{ branch_holdings|count }})
+	({{ branch_holdings|sum('available') }}/{{ branch_holdings|sum('copies') }})
 
 	{%- if branch_holdings|sum('available') > 0 -%}:
 		{% for call_num, branch_calls in branch_holdings|groupby('call_num') %}
 			{%- if branch_calls|sum('available') > 0 -%}
-				{%- if branch_calls|sum('available') != branch_holdings|count -%}
+				{%- if branch_calls|sum('available') != branch_holdings|sum('copies') -%}
 					{{ branch_calls|sum('available') }}@
 				{%- endif -%}
 				<a href="{{ branch_calls[0]['catalog_url'] }}">{{ call_num }}</a>

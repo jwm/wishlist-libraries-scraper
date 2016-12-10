@@ -1,3 +1,5 @@
+import re
+
 from scrapy.loader.processors import (
     Compose, Join, MapCompose, TakeFirst)
 from scrapy.item import Item, Field
@@ -42,11 +44,37 @@ class WishlistItem(Item):
 
 
 class LibraryAvailability(Item):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setdefault('available', False)
+        self.setdefault('copies', 1)
+        self.setdefault('holds', 0)
+
     def parse_available(value):
         return value.lower() in ['true', 'available', 'in', 'not checked out']
 
     def parse_call_num(value):
         return value.replace(u'\xa0', ' ')
+
+    def parse_copies(value):
+        if not value:
+            return
+
+        matches = re.search(r'Holds: (\d+) on (\d+)', value)
+        if not matches:
+            return
+
+        return matches.group(2)
+
+    def parse_holds(value):
+        if not value:
+            return
+
+        matches = re.search(r'Holds: (\d+) on (\d+)', value)
+        if not matches:
+            return
+
+        return matches.group(1)
 
     item = Field(output_processor=TakeFirst())
     library = Field()
@@ -58,6 +86,14 @@ class LibraryAvailability(Item):
             MapCompose(lambda s: s.strip()), TakeFirst(), parse_call_num))
     digital_url = Field(
         output_processor=Compose(MapCompose(lambda s: s.strip()), TakeFirst()))
+    copies = Field(
+        serializer=int,
+        output_processor=Compose(
+            MapCompose(lambda s: s.strip()), TakeFirst(), parse_copies))
     available = Field(
         output_processor=Compose(
             MapCompose(lambda s: s.strip()), TakeFirst(), parse_available))
+    holds = Field(
+        serializer=int,
+        output_processor=Compose(
+            MapCompose(lambda s: s.strip()), TakeFirst(), parse_holds))
