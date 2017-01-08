@@ -44,11 +44,11 @@ class WishlistItem(Item):
 
 
 class LibraryAvailability(Item):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setdefault('available', False)
-        self.setdefault('copies', 1)
-        self.setdefault('holds', 0)
+    def process_item(self, item, spider):
+        item.setdefault('available', False)
+        item.setdefault('copies', 1)
+        item.setdefault('holds', 0)
+        return item
 
     def parse_available(value):
         return value.lower() in ['true', 'available', 'in', 'not checked out']
