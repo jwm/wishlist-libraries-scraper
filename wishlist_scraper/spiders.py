@@ -9,7 +9,7 @@ import re
 import requests
 import time
 from urllib.error import HTTPError
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 import bottlenose
 import lxml
@@ -62,42 +62,27 @@ class WishlistSpider(scrapy.spiders.Spider):
             return None
         return self.amazon_api_cache[url]
 
-    def parse(self, response):
-        for item in self.parse_wishlist_page(response):
-            yield item
-
-        pages = response.css('#wishlistPagination')[0].css('a::attr(href)')
-
-        # The Wishlist page doesn't display all page numbers (i.e., it shows
-        # '1 2 3 4 5 6 7 .. maxnum'), so determine the maximum page number
-        # and build URLs iteratively until we reach it.
-        max_page_num = 1
-        template_page_url = response.url
-        for page in pages:
-            page_url = urlparse(qualified_url(response, page.extract()))
-            qs = parse_qs(page_url.query)
-            if 'page' not in qs:
+    def _nextPageUrl(self, response):
+        for state_node in response.css('script[type="a-state"]'):
+            state = json.loads(state_node.root.text)
+            if 'showMoreUrl' not in state:
+                continue
+            if not state.get('lastEvaluatedKey'):
                 continue
 
-            max_page_num = max(max_page_num, int(qs['page'][0]))
-            template_page_url = page_url
+            return urljoin('https://www.amazon.com', state['showMoreUrl'])
 
-        for page_num in range(2, max_page_num + 1):
-            qs = parse_qs(template_page_url.query)
-            qs['page'] = [page_num]
-
-            page_url = list(template_page_url)
-            page_url[4] = urlencode(dict([(k, qs[k][0]) for k in qs]))
-            page_url = urlunparse(page_url)
-
-            yield scrapy.http.Request(
-                page_url, meta={'wishlist_page': page_num},
-                callback=self.parse_wishlist_page)
+    def parse(self, response):
+        self.item_num = 0
+        yield from self.parse_wishlist_page(response)
 
     def parse_wishlist_page(self, response):
-        items = response.css('div::attr(data-item-prime-info)')
+        page_url = self._nextPageUrl(response)
+        if page_url:
+            yield scrapy.http.Request(
+                page_url, callback=self.parse_wishlist_page)
 
-        for i, item in enumerate(items):
+        for item in response.css('div::attr(data-item-prime-info)'):
             info = json.loads(item.extract())
 
             product_info = self.amazon.ItemLookup(
@@ -109,9 +94,9 @@ class WishlistSpider(scrapy.spiders.Spider):
                 'http://webservices.amazon.com/AWSECommerceService/2013-08-01')
 
             item_loader = WishlistItemLoader(selector=sel)
-            item_loader.add_value(
-                'sort_key',
-                '{}/{}'.format(response.meta.get('wishlist_page', 1), i))
+
+            self.item_num += 1
+            item_loader.add_value('sort_key', str(self.item_num))
 
             item_loader.add_xpath(
                 'isbn', '//aws:ItemAttributes/aws:EISBN/text()')
