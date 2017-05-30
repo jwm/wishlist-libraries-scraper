@@ -44,12 +44,6 @@ class WishlistItem(Item):
 
 
 class LibraryAvailability(Item):
-    def process_item(self, item, spider):
-        item.setdefault('available', False)
-        item.setdefault('copies', 1)
-        item.setdefault('holds', 0)
-        return item
-
     def parse_available(value):
         return value.lower() in ['true', 'available', 'in', 'not checked out']
 
@@ -58,11 +52,11 @@ class LibraryAvailability(Item):
 
     def parse_copies(value):
         if not value:
-            return
+            return '1'
 
         matches = re.search(r'Holds: (\d+) on (\d+)', value)
         if not matches:
-            return
+            return '1'
 
         return matches.group(2)
 
